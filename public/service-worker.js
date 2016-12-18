@@ -2,45 +2,97 @@
  * Created by qoder on 16/12/18.
  */
 "use strict";
-let cacheFiles = [
-    './',
-    './cache/about.js',
-    './cache/blog.js'
-]
 
-self.addEventListener('install', (evt)=> {
-    evt.waitUntil(
-        caches.open('my-test-cache-v1').then((cache)=> {
-            console.log(cache)
-            return cache.addAll(cacheFiles)
-        }).catch(()=> {
-            console.log(1232)
+var getCacheName = ()=> {
+    return 'neuqstv-1';
+}
+
+var fetchAndCache = (request, evt)=> {
+    fetch(request).then((response)=> {
+        if (!response && !response.status !== 200) {
+            return response;
+        }
+        var responseClone = response.clone();
+        caches.open(getCacheName()).then((cache)=> {
+            console.log(evt.request);
+            cache.put(evt.request, responseClone);
         })
-    )
-})
+
+        return response;
+    })
+}
 
 self.addEventListener('fetch', (evt)=> {
-    evt.respondWith(
-        caches.match(evt.request).then((response)=> {
-            if (response) {
-                console.log(response)
-                return response;
-            }
+    let localUrl = /http:\/\/:localhost:3000/;
+    let apiUrl = /http:\/\/api\.neuqst\.qoder\.cn/;
+    let request = evt.request;
+    let url = request.url;
 
-            var request = evt.request.clone();
-            return fetch(request).then((response)=> {
-                console.log(response);
-                if (!response && !response.status !== 200 && !response.headers.get('Content-type').match(/image/)) {
+    //处理index.html
+    if (url.match(localUrl)) {
+        console.log('called3123')
+        //在线处理
+        if (navigator.onLine) {
+            return fetchAndCache(request, evt);
+        } else {
+            //断网处理
+            evt.respondWith(
+                caches.match(evt.request).then((response)=> {
+                    if (response) {
+                        return response;
+                    }
+                })
+            )
+        }
+    }
+
+    //处理api地址接口
+    if (url.match(apiUrl)) {
+        //断网情况
+        if (!navigator.onLine) {
+            evt.respondWith(
+                caches.match(evt.request).then((response)=> {
+                    return response;
+                })
+            )
+        } else {
+            //有网情况
+            evt.respondWith(
+                fetch(request).then((response)=> {
+                    if (!response && response.status !== 200) {
+                        return response;
+                    }
+
+                    var responseClone = response.clone();
+                    caches.open(getCacheName()).then(function (cache) {
+                        cache.put(evt.request, responseClone);
+                    });
+                    return response;
+                })
+            )
+        }
+    }
+
+    if (!url.match(apiUrl) && !url.match(localUrl)) {
+        console.log('静态资源')
+        evt.respondWith(
+            caches.match(evt.request).then((response)=> {
+                if (response) {
                     return response;
                 }
-                var responseClone = response.clone();
-                caches.open('my-test-cache-v1').then((cache)=> {
-                    cache.put(evt.request, responseClone);
-                })
+                var request = evt.request.clone();
+                return fetch(request, (response)=> {
+                    if (!response && response.status !== 200) {
+                        return response;
+                    }
 
-                return response;
+                    var responseClone = response.clone();
+                    caches.open(getCacheName()).then(function (cache) {
+                        cache.put(evt.request, responseClone);
+                    });
+                    return response;
+                });
             })
-
-        })
-    )
+        )
+    }
 })
