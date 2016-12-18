@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+</head>
+<body>
+<h1><%= title %></h1>
+<p>Welcome to <%= title %></p>
+<img src="/images/test.jpg" alt="" style="width: 200px;height: 200px">
+<script src="http://localhost:3000/cache/about.js"></script>
+<script>
+    window.onload = function () {
+        if (navigator.serviceWorker) {
+            console.log('called');
+            navigator.serviceWorker.register('/service-worker.js').then(function (registration) {
+                console.log('service worker 注册成功');
+            }).catch(function (err) {
+                console.log('servcie worker 注册失败')
+            });
+        }
+    }
+</script>
+</body>
+</html>
